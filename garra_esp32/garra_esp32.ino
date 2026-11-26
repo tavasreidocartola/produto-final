@@ -15,7 +15,7 @@
 //    v,<0-100>         velocidade em %
 //    x                 PARAR tudo
 //    p                 ping
-//  Vários comandos podem ir juntos, separados por ';'  ex: m,0,1;m,1,-1
+//  Vários comandos podem ir juntos, separados por ';'  ex: m,1,1;m,2,-1
 //  Toda resposta é um JSON com o estado atual.
 // ============================================================
 #include <WiFi.h>
@@ -34,15 +34,13 @@
 #define WIFI_SENHA  "garra1234"   // mínimo 8 caracteres
 
 // ---------- Motores (cada um = 1 motor DC + 1 par de seringas) ----------
-// 8 seringas = 4 pares = 4 motores = 2 módulos de ponte H (2 motores cada).
+// Ombro e cotovelo são motorizados. Base e garra são operadas manualmente.
 //
 // pinoA / pinoB : vão nas entradas da ponte H (IN1/IN2 ou IN3/IN4).
 // botaoMenos / botaoMais : texto dos botões no celular.
 // invertido     : true se o motor gira ao contrário do botão.
 //
-//  Ponte H 1:  IN1 = 32  IN2 = 33  (Base)    |  IN3 = 25  IN4 = 26  (Ombro)
-//  Ponte H 2:  IN1 = 23  IN2 = 22  (Cotovelo)|  IN3 = 19  IN4 = 18  (Garra)
-//  (Ponte H 1 usa pinos do lado esquerdo da placa, a Ponte H 2 do lado direito.)
+//  GPIO 25/26: Ombro. GPIO 23/22: Cotovelo.
 struct Motor {
   const char* nome;
   const char* botaoMenos;
@@ -52,14 +50,14 @@ struct Motor {
   bool        invertido;
 };
 
-#define NUM_MOTORES 4
+#define NUM_MOTORES 2
+// Preserva os IDs 1 (ombro) e 2 (cotovelo) no protocolo /cmd.
+constexpr int PRIMEIRO_ID_MOTOR = 1;
 
 static const Motor MOTORES[NUM_MOTORES] = {
   // nome        botão −      botão +     pinoA pinoB invertido
-  { "Base",     "Esquerda",  "Direita",    32,   33,   false },
   { "Ombro",    "Desce",     "Sobe",       25,   26,   false },
   { "Cotovelo", "Recolhe",   "Estica",     23,   22,   false },
-  { "Garra",    "Abre",      "Fecha",      19,   18,   false },
 };
 
 // ---------- Velocidade (PWM nas entradas da ponte H) ----------
@@ -302,17 +300,12 @@ const char PAGINA_HTML[] PROGMEM = R"rawliteral(
       <symbol id="arm" viewBox="0 0 24 24"><path d="M3 21h14M7 21v-6l5-6m3-2 3-3m0 0 3 1m-3-1-1 4"/><circle cx="13.5" cy="8.5" r="2"/><circle cx="7" cy="15" r="1.6"/></symbol>
       <symbol id="wifi" viewBox="0 0 24 24"><path d="M3 8a14 14 0 0 1 18 0M6 12a9 9 0 0 1 12 0m-9 4a4 4 0 0 1 6 0m-3 4h.01"/></symbol>
       <symbol id="info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5m0-8h.01"/></symbol>
-      <symbol id="base" viewBox="0 0 24 24"><ellipse cx="12" cy="10" rx="8" ry="4"/><path d="M4 10v5c0 2.2 3.6 4 8 4s8-1.8 8-4v-5"/></symbol>
       <symbol id="shoulder" viewBox="0 0 24 24"><path d="M4 20h10m-5 0V9m0-1 9-4"/><circle cx="9" cy="9" r="2"/></symbol>
       <symbol id="elbow" viewBox="0 0 24 24"><path d="m4 18 5-9m3-1 8 5"/><circle cx="10.5" cy="8" r="2"/></symbol>
-      <symbol id="claw" viewBox="0 0 24 24"><path d="M12 3v5M8 8h8l3 4v5l-4 4m-7-13-3 4v5l4 4"/></symbol>
-      <symbol id="left" viewBox="0 0 24 24"><path d="M19 12H5m6-6-6 6 6 6"/></symbol>
-      <symbol id="right" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"/></symbol>
       <symbol id="up" viewBox="0 0 24 24"><path d="M12 19V5m-6 6 6-6 6 6"/></symbol>
       <symbol id="down" viewBox="0 0 24 24"><path d="M12 5v14m-6-6 6 6 6-6"/></symbol>
       <symbol id="in" viewBox="0 0 24 24"><path d="M3 12h6m-3-3 3 3-3 3m15-3h-6m3-3-3 3 3 3M12 5v14"/></symbol>
       <symbol id="out" viewBox="0 0 24 24"><path d="M9 12H3m3-3-3 3 3 3m9-3h6m-3-3 3 3-3 3M12 5v14"/></symbol>
-      <symbol id="open" viewBox="0 0 24 24"><path d="M12 3v5M8 8h8l4 4v6l-1 2M8 8l-4 4v6l1 2"/></symbol>
       <symbol id="speed-icon" viewBox="0 0 24 24"><path d="M4 18a9 9 0 1 1 16 0H4Zm8-4 4-4"/></symbol>
       <symbol id="stop-icon" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/></symbol>
     </defs>
@@ -354,13 +347,12 @@ const char PAGINA_HTML[] PROGMEM = R"rawliteral(
   </main>
   <script>
     const $ = id => document.getElementById(id);
-    const ICONE_JUNTA = ['base', 'shoulder', 'elbow', 'claw'];
+    const ICONE_JUNTA = ['shoulder', 'elbow'];
     const ICONES = [
-      ['left', 'right'], ['down', 'up'], ['in', 'out'], ['open', 'claw']
+      ['down', 'up'], ['in', 'out']
     ];
     const ROTULOS = [
-      ['Esquerda', 'Direita'], ['Descer', 'Subir'],
-      ['Recolher', 'Estender'], ['Abrir', 'Fechar']
+      ['Descer', 'Subir'], ['Recolher', 'Estender']
     ];
     const icone = id => '<svg class="icon" aria-hidden="true"><use href="#' + id + '"/></svg>';
 
@@ -382,7 +374,12 @@ const char PAGINA_HTML[] PROGMEM = R"rawliteral(
       ocupado = true;
       const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), 1500);
       fetch('/cmd?c=' + encodeURIComponent(m), { cache: 'no-store', signal: ctl.signal })
-        .then(r => r.json()).then(s => { online(true); atualizar(s); })
+        .then(r => r.json()).then(s => {
+          if (s.j?.length !== 2 || s.j[0].id !== 1 || s.j[1].id !== 2) {
+            throw new Error('Firmware incompatível');
+          }
+          atualizar(s); online(true);
+        })
         .catch(() => online(false))
         .finally(() => { clearTimeout(to); ocupado = false; if (fila) { const f = fila; fila = null; enviar(f); } });
     }
@@ -397,8 +394,8 @@ const char PAGINA_HTML[] PROGMEM = R"rawliteral(
             ${icone(ICONE_JUNTA[i])}<h2 id="junta${i}"></h2><span class="joint-state" id="t${i}">Parado</span>
           </div>
           <div class="actions">
-            <button type="button" class="move hold" data-i="${i}" data-d="-1">${icone(ICONES[i][0])}<span></span></button>
-            <button type="button" class="move hold" data-i="${i}" data-d="1">${icone(ICONES[i][1])}<span></span></button>
+            <button type="button" class="move hold" data-i="${motor.id}" data-d="-1">${icone(ICONES[i][0])}<span></span></button>
+            <button type="button" class="move hold" data-i="${motor.id}" data-d="1">${icone(ICONES[i][1])}<span></span></button>
           </div>`;
         painel.querySelector('h2').textContent = motor.n;
         painel.querySelectorAll('button span').forEach((rotulo, sentido) => {
@@ -424,7 +421,7 @@ const char PAGINA_HTML[] PROGMEM = R"rawliteral(
     }
 
     function atualizar(s) {
-      if (!estado || estado.j.length !== s.j.length) montar(s.j);
+      if (!estado) montar(s.j);
       estado = s;
       s.j.forEach((x, i) => {
         const t = $('t' + i);
@@ -515,7 +512,8 @@ String estadoJson() {
   String s = "{\"v\":" + String(velocidade) + ",\"j\":[";
   for (int i = 0; i < NUM_MOTORES; i++) {
     if (i) s += ",";
-    s += "{\"n\":\"" + String(MOTORES[i].nome) + "\"" +
+    s += "{\"id\":" + String(i + PRIMEIRO_ID_MOTOR) +
+         ",\"n\":\"" + String(MOTORES[i].nome) + "\"" +
          ",\"m\":\"" + String(MOTORES[i].botaoMenos) + "\"" +
          ",\"p\":\"" + String(MOTORES[i].botaoMais) + "\"" +
          ",\"d\":"   + String(direcao[i]) +
@@ -525,11 +523,13 @@ String estadoJson() {
 }
 
 void tratarMensagem(const char* msg) {
-  int j, v;
+  int id, v;
   unsigned long agora = millis();
   switch (msg[0]) {
     case 'm':
-      if (sscanf(msg, "m,%d,%d", &j, &v) == 2 && j >= 0 && j < NUM_MOTORES) {
+      if (sscanf(msg, "m,%d,%d", &id, &v) == 2 &&
+          id >= PRIMEIRO_ID_MOTOR && id < PRIMEIRO_ID_MOTOR + NUM_MOTORES) {
+        const int j = id - PRIMEIRO_ID_MOTOR;
         v = constrain(v, -1, 1);
         if (v == 0) { pararMotor(j); travado[j] = false; break; }
         if (travado[j]) { ultimoCmd[j] = agora; break; }   // ainda segurando: ignora
@@ -571,7 +571,10 @@ void setup() {
   Serial.print("Abra no celular: http://");
   Serial.println(WiFi.softAPIP());
 
-  server.on("/", []() { server.send(200, "text/html", PAGINA_HTML); });
+  server.on("/", []() {
+    server.sendHeader("Cache-Control", "no-store");
+    server.send(200, "text/html; charset=utf-8", PAGINA_HTML);
+  });
   server.on("/icon.svg", []() {
     server.sendHeader("Cache-Control", "max-age=86400");
     server.send(200, "image/svg+xml", ICONE_SVG);
