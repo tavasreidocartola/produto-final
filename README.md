@@ -1,14 +1,18 @@
 # Garra hidráulica com ESP32
 
-Este projeto usa o firmware original da garra com uma interface web redesenhada. O sketch contém a página em HTML, CSS e JavaScript no bloco `PAGINA_HTML`.
+O painel web controla os dois motores do braço. A base e a garra são operadas manualmente.
 
-## Atualizar a interface
+| Motor | Controles | GPIOs do ESP32 | ID em `/cmd` |
+| --- | --- | --- | --- |
+| Ombro | Descer / Subir | 25 e 26 | 1 |
+| Cotovelo | Recolher / Estender | 23 e 22 | 2 |
 
-1. Se você já tem o sketch que funciona, abra os dois arquivos e copie apenas o bloco `const char PAGINA_HTML[]` do novo para o seu, da declaração até `)rawliteral";`. Isso preserva qualquer ajuste que você tenha feito na sua cópia.
-2. Se preferir usar o arquivo completo, abra `garra_esp32/garra_esp32.ino` na Arduino IDE. O arquivo foi montado com as configurações do código enviado, incluindo o nome da rede **Garra-Carangueijo**.
-3. Na Arduino IDE, selecione sua placa e a porta USB e clique em **Carregar**. A página fica na memória do ESP32, então a gravação atualiza a página que ele serve.
-4. Conecte-se à rede **Garra-Carangueijo** e abra **http://192.168.4.1**. Se vir o visual antigo, recarregue a página.
+## Gravar o firmware e abrir o painel
 
-Segure um botão para mover e solte para parar. O botão vermelho aciona a parada geral. O controle de velocidade continua usando o PWM do firmware original.
+1. Baixe ou clone o projeto e abra `garra_esp32/garra_esp32.ino` na Arduino IDE. O HTML, o CSS e o JavaScript já estão no sketch.
+2. Selecione a placa e a porta USB e clique em **Carregar**.
+3. Conecte seu celular ou computador à rede **Garra-Carangueijo** e abra **http://192.168.4.1**. Se aparecer o visual antigo, recarregue a página.
 
-O painel usa a rota original `/cmd?c=` e funciona pela própria rede Wi-Fi do ESP32. O ponto de acesso, a pinagem, os comandos e a lógica de parada do firmware vêm do anexo e do [repositório de referência](https://github.com/jao0097/pfinal).
+Segure um botão para mover e solte para parar. O botão vermelho para os dois motores. O painel mantém o ajuste de velocidade por PWM e o firmware interrompe o movimento quando deixa de receber os comandos de renovação.
+
+A interface funciona pela rede do ESP32 usando a rota `/cmd?c=`. Projeto baseado no [firmware de referência](https://github.com/jao0097/pfinal).
