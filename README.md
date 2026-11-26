@@ -5,7 +5,9 @@ O painel web controla os dois motores do braço. A base e a garra são operadas 
 | Motor | Controles | GPIOs do ESP32 | ID em `/cmd` |
 | --- | --- | --- | --- |
 | Ombro | Descer / Subir | 25 e 26 | 1 |
-| Cotovelo | Recolher / Estender | 23 e 22 | 2 |
+| Cotovelo | Recolher / Estender | 32 e 33 | 2 |
+
+O cotovelo usa as mesmas saídas que acionavam a Base na versão anterior.
 
 ## Gravar o firmware e abrir o painel
 
