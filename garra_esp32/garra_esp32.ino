@@ -40,7 +40,7 @@
 // botaoMenos / botaoMais : texto dos botões no celular.
 // invertido     : true se o motor gira ao contrário do botão.
 //
-//  GPIO 25/26: Ombro. GPIO 23/22: Cotovelo.
+//  GPIO 25/26: Ombro. GPIO 32/33: Cotovelo (mesmas saídas da antiga Base).
 struct Motor {
   const char* nome;
   const char* botaoMenos;
@@ -57,7 +57,7 @@ constexpr int PRIMEIRO_ID_MOTOR = 1;
 static const Motor MOTORES[NUM_MOTORES] = {
   // nome        botão −      botão +     pinoA pinoB invertido
   { "Ombro",    "Desce",     "Sobe",       25,   26,   false },
-  { "Cotovelo", "Recolhe",   "Estica",     23,   22,   false },
+  { "Cotovelo", "Recolhe",   "Estica",     32,   33,   false },
 };
 
 // ---------- Velocidade (PWM nas entradas da ponte H) ----------
